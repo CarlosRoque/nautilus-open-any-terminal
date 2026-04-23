@@ -26,7 +26,23 @@ elif (API_VERSION := get_required_version("Caja")) is not None:
     require_version("Gtk", "3.0")
     from gi.repository import Caja as FileManager
 else:
-    raise RuntimeError("This module can only be executed as a Nautilus/Caja extension")
+    # Fallback: nautilus-python may not have set the required version.
+    # This happens on Fedora 43 where nautilus 49.x (API 4.1) ships with
+    # nautilus-python 4.0.x which can't set the version automatically.
+    for _version in ("4.1", "4.0"):
+        try:
+            require_version("Nautilus", _version)
+            API_VERSION = _version
+            break
+        except ValueError:
+            continue
+    else:
+        raise RuntimeError("This module can only be executed as a Nautilus/Caja extension")
+    try:
+        require_version("Gtk", "4.0")
+    except ValueError:
+        require_version("Gtk", "3.0")
+    from gi.repository import Nautilus as FileManager
 
 from gi.repository import Gio, GLib, GObject, Gtk  # noqa: E402 pylint: disable=wrong-import-position
 
@@ -450,7 +466,7 @@ def set_terminal_args(*_args):
     print(f'open-any-terminal: terminal is set to "{terminal}" {new_tab_text} {flatpak_text}')
 
 
-if API_VERSION == "4.0":
+if API_VERSION in ("4.0", "4.1"):
 
     class OpenAnyTerminalShortcutProvider(GObject.GObject, FileManager.MenuProvider):
         """Provide keyboard shortcuts for opening terminals in Nautilus."""
